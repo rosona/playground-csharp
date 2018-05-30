@@ -10,7 +10,7 @@ dotnet publish -c Release console-test
 
 # Build the Docker images
 docker build -t rosona/test:$TAG console-test/bin/Release/netcoreapp2.0/publish/.
-docker tag rosona/test:$TAG test/project:latest
+docker tag rosona/test:$TAG rosona/test:latest
 
 # Login to Docker Hub and upload images
 docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
