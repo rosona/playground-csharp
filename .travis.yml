@@ -9,7 +9,7 @@ before_script:
   - chmod a+x ./docker/build.sh
   - chmod a+x ./docker/deploy.sh
 script:
-  - ./build.sh
+  - ./docker/build.sh
 deploy:
   - provider: script
     script: ./docker/deploy.sh $TRAVIS_TAG $DOCKER_USERNAME $DOCKER_PASSWORD
