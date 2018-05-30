@@ -6,13 +6,13 @@ dotnet: 2.1.200
 install:
   - export DOTNET_CLI_TELEMETRY_OPTOUT=1
 before_script:
-  - chmod a+x ./docker/build.sh
-  - chmod a+x ./docker/deploy.sh
+  - chmod a+x ./build.sh
+  - chmod a+x ./deploy.sh
 script:
-  - ./docker/build.sh
+  - ./build.sh
 deploy:
   - provider: script
-    script: ./docker/deploy.sh $TRAVIS_TAG $DOCKER_USERNAME $DOCKER_PASSWORD
+    script: ./deploy.sh $TRAVIS_TAG $DOCKER_USERNAME $DOCKER_PASSWORD
     skip_cleanup: true
     on:
       tags: true
