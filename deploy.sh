@@ -5,14 +5,18 @@ TAG=$1
 DOCKER_USERNAME=$2
 DOCKER_PASSWORD=$3
 
-# Create publish artifact
-dotnet publish -c Release console-test
-
-# Build the Docker images
-docker build -t rosona/test:$TAG console-test/bin/Release/netcoreapp2.0/publish/.
-docker tag rosona/test:$TAG rosona/test:latest
-
-# Login to Docker Hub and upload images
 docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
-docker push rosona/test:$TAG
-docker push rosona/test:latest
+
+# ConsoleAppTest docker
+dotnet publish -c Release ConsoleAppTest
+docker build -t rosona/console-app-test:$TAG ConsoleAppTest/bin/Release/netcoreapp2.0/publish/.
+docker tag rosona/console-app-test:$TAG rosona/console-app-test:latest
+docker push rosona/console-app-test:$TAG
+docker push rosona/console-app-test:latest
+
+# AkkaTest docker
+dotnet publish -c Release AkkaTest
+docker build -t rosona/akka-test:$TAG ConsoleAppTest/bin/Release/netcoreapp2.0/publish/.
+docker tag rosona/akka-test:$TAG rosona/akka-test:latest
+docker push rosona/akka-test:$TAG
+docker push rosona/akka-test:latest

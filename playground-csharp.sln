@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "console-test", "console-test\console-test.csproj", "{0E12C100-80EE-4DF7-B68A-81AC3EA69105}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AkkaTest", "AkkaTest\AkkaTest.csproj", "{72CD59CD-3022-4633-A082-C8F945715E39}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleAppTest", "ConsoleAppTest\ConsoleAppTest.csproj", "{67306F7F-DD66-4382-9AD7-1FD2BE79E813}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -8,9 +10,13 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{0E12C100-80EE-4DF7-B68A-81AC3EA69105}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0E12C100-80EE-4DF7-B68A-81AC3EA69105}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0E12C100-80EE-4DF7-B68A-81AC3EA69105}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0E12C100-80EE-4DF7-B68A-81AC3EA69105}.Release|Any CPU.Build.0 = Release|Any CPU
+		{72CD59CD-3022-4633-A082-C8F945715E39}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72CD59CD-3022-4633-A082-C8F945715E39}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72CD59CD-3022-4633-A082-C8F945715E39}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72CD59CD-3022-4633-A082-C8F945715E39}.Release|Any CPU.Build.0 = Release|Any CPU
+		{67306F7F-DD66-4382-9AD7-1FD2BE79E813}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{67306F7F-DD66-4382-9AD7-1FD2BE79E813}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{67306F7F-DD66-4382-9AD7-1FD2BE79E813}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{67306F7F-DD66-4382-9AD7-1FD2BE79E813}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
