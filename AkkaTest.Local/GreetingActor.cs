@@ -1,7 +1,7 @@
 ﻿using System;
 using Akka.Actor;
 
-namespace AkkaTest
+namespace AkkaTest.Local
 {
     public class GreetingActor : ReceiveActor
     {

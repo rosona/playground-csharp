@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Akka" Version="1.3.7" />
+    <PackageReference Include="Akka.Remote" Version="1.3.7" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AkkaTest.Common\AkkaTest.Common.csproj" />
+  </ItemGroup>
+</Project>

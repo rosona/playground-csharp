@@ -1,4 +1,4 @@
-﻿namespace AkkaTest
+﻿namespace AkkaTest.Local
 {
     public class Greet
     {
