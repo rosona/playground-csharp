@@ -1,12 +1,12 @@
-﻿using System;
+﻿using ConsoleAppTest.Signature;
 
 namespace ConsoleAppTest
 {
-    class Program
+    static class Program
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            SignatureTest.DoTest(100000, 1000);
         }
     }
 }
