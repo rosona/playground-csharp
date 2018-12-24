@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using ConsoleAppTest.Utils;
 using Org.BouncyCastle.Asn1.Sec;
 using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto.Generators;
@@ -39,7 +40,7 @@ namespace ConsoleAppTest.Signature
             return keyPairs;
         }
 
-        public static IEnumerable<Dictionary<string, object>> Signature(int count, Dictionary<ECPublicKeyParameters, ECPrivateKeyParameters> keyPairs)
+        public static List<Dictionary<string, object>> Signature(int count, Dictionary<ECPublicKeyParameters, ECPrivateKeyParameters> keyPairs)
         {
             var signatures = new List<Dictionary<string, object>>();
             for (var i = 0; i < count; i++)
@@ -48,7 +49,7 @@ namespace ConsoleAppTest.Signature
                 var ecdsaSigner = new ECDsaSigner();
                 ecdsaSigner.Init(true, new ParametersWithRandom(keyPair.Value, SecureRandom));
 
-                var randomString = SignatureTest.RandomString(20);
+                var randomString = StringUtils.RandomString(20);
                 var messageBytes = Encoding.UTF8.GetBytes(randomString);
                 var signature = ecdsaSigner.GenerateSignature(messageBytes);
 
@@ -64,7 +65,7 @@ namespace ConsoleAppTest.Signature
             return signatures;
         }
 
-        public static void SignatureVerify(IEnumerable<Dictionary<string, object>> signatures)
+        public static void SignatureVerify(List<Dictionary<string, object>> signatures)
         {
             foreach (var s in signatures)
             {

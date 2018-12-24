@@ -11,15 +11,19 @@
     <None Remove="Dockerfile" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Base58Check" Version="0.2.0" />
     <PackageReference Include="BouncyCastle.NetCore" Version="1.8.2" />
     <PackageReference Include="ChakraCore.NET" Version="1.3.1" />
-    <PackageReference Include="ChakraCore.NET.Core" Version="1.1.1" />
-    <PackageReference Include="ChakraCore.NET.Hosting" Version="1.0.2" />
+    <PackageReference Include="ClearScript.V8" Version="5.5.2" />
     <PackageReference Include="CsvHelper" Version="8.0.0-beta01" />
+    <PackageReference Include="Jint-netcore" Version="2.7.1-final" />
+    <PackageReference Include="NiL.JS" Version="2.5.1282" />
     <PackageReference Include="NLog" Version="4.5.9" />
     <PackageReference Include="NLog.Config" Version="4.5.9" />
+    <PackageReference Include="NServiceKit.Redis" Version="1.0.20" />
     <PackageReference Include="Open.NAT" Version="2.1.0" />
     <PackageReference Include="Secp256k1.Native" Version="0.1.18" />
     <PackageReference Include="Secp256k1.Net" Version="0.1.44" />
+    <PackageReference Include="StackExchange.Redis" Version="2.0.513" />
   </ItemGroup>
 </Project>

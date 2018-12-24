@@ -1,4 +1,9 @@
-﻿using ConsoleAppTest.Signature;
+﻿using System;
+using System.Net.Mime;
+using System.Reflection;
+using ConsoleAppTest.base58;
+using ConsoleAppTest.Javascript;
+using ConsoleAppTest.Signature;
 
 namespace ConsoleAppTest
 {
@@ -6,7 +11,11 @@ namespace ConsoleAppTest
     {
         static void Main(string[] args)
         {
-            SignatureTest.DoTest(100000, 1000);
+            Redis.Test.Run();
+//            SystemFunction.DoTest();
+//            Base58Test.Do();
+//            JavascriptTest.Run();
+//            SignatureTest.DoTest(1000, 100);
         }
     }
 }
