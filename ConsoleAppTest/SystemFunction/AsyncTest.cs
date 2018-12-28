@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ConsoleAppTest
+namespace ConsoleAppTest.SystemFunction
 {
     
-    public static class SystemFunction
+    public static class AsyncTest
     {
         private class Person
         {
@@ -47,7 +47,7 @@ namespace ConsoleAppTest
         {
             Console.WriteLine($"{DateTime.Now:HH:mm:ss} Before Thing11");
 
-            await Thing11().ConfigureAwait(false);
+            await Thing11();
             
             Console.WriteLine($"{DateTime.Now:HH:mm:ss} After Thing11");
         }

@@ -12,10 +12,10 @@ namespace ConsoleAppTest
         static void Main(string[] args)
         {
             Redis.Test.Run();
-//            SystemFunction.DoTest();
-//            Base58Test.Do();
-//            JavascriptTest.Run();
-//            SignatureTest.DoTest(1000, 100);
+            // Base58Test.Do();
+            // JavascriptTest.Run();
+            // SignatureTest.DoTest(1000, 50);
+            // SystemFunction.JsonTest.DoTest();
         }
     }
 }

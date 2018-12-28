@@ -8,124 +8,12 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 
-namespace ConsoleAppTest.Redis
+namespace ConsoleAppTest.Redis.RedisProtocol
 {
-    public class PooledSimpleRedisClient
-    {
-        private readonly RedisClient[] _simpleRedisClients;
-        private int PoolSize { get; }
-        private int Db { get; }
-        public string Host { get; }
-        public int Port { get; }
-        public string Password { get; set; }
-        public int? PoolTimeout { get; set; }
-        public int RecheckPoolAfterMs { get; } = 100;
-
-        public PooledSimpleRedisClient(string host, int port = 6379, int db = 0, int poolSize = 5)
-        {
-            Host = host ?? throw new ArgumentNullException(nameof(host));
-            Port = port;
-            PoolSize = poolSize;
-            Db = db;
-            _simpleRedisClients = new RedisClient[PoolSize];
-        }
-
-        public void Set(string key, string value)
-        {
-            var client = GetSimpleRedisClient();
-            client.Set(key, Encoding.UTF8.GetBytes(value));
-            client.Active = false;
-        }
-
-        public bool Set(string key, byte[] value)
-        {
-            var client = GetSimpleRedisClient();
-            client.Set(key, value);
-            client.Active = false;
-            return true;
-        }
-
-//        public void SetAll(IDictionary<string, byte[]> dict)
-//        {
-//            var client = GetSimpleRedisClient();
-//            client.MSet(dict.Keys, dict.Values);
-//            client.Active = false;
-//        }
-
-        public bool Ping()
-        {
-            return GetSimpleRedisClient().Ping();
-        }
-
-        public bool Remove(string key)
-        {
-            var client = GetSimpleRedisClient();
-            var succeed = client.Del(key);
-            client.Active = false;
-            return true;
-        }
-
-        public byte[] Get(string key)
-        {
-            var client = GetSimpleRedisClient();
-            var value = client.Get(key);
-            client.Active = false;
-            return value;
-        }
-
-        public string GetString(string key)
-        {
-            var client = GetSimpleRedisClient();
-            var value = Encoding.UTF8.GetString(Get(key));
-            client.Active = false;
-            return value;
-        }
-
-        private RedisClient GetSimpleRedisClient()
-        {
-            lock (_simpleRedisClients)
-            {
-                RedisClient inActiveClient;
-                while ((inActiveClient = GetInActiveSimpleRedisClient()) == null)
-                {
-                    if (PoolTimeout.HasValue)
-                    {
-                        // wait for a connection, cry out if made to wait too long
-                        if (!Monitor.Wait(_simpleRedisClients, PoolTimeout.Value))
-                            throw new TimeoutException("Pool timeout error.");
-                    }
-                    else
-                        Monitor.Wait(_simpleRedisClients, RecheckPoolAfterMs);
-                }
-
-                inActiveClient.Active = true;
-                return inActiveClient;
-            }
-        }
-
-        private RedisClient GetInActiveSimpleRedisClient()
-        {
-            for (var i = 0; i < _simpleRedisClients.Length; i++)
-            {
-                if (_simpleRedisClients[i] != null && !_simpleRedisClients[i].Active && !_simpleRedisClients[i].HadExceptions)
-                    return _simpleRedisClients[i];
-
-                if (_simpleRedisClients[i] == null || _simpleRedisClients[i].HadExceptions)
-                {
-                    if (_simpleRedisClients[i] != null)
-                        _simpleRedisClients[i].Dispose();
-                    var client = new RedisClient(Host, Port, Password, Db);
-
-                    _simpleRedisClients[i] = client;
-                    return client;
-                }
-            }
-
-            return null;
-        }
-    }
-
-    public class RedisClient
+    /**
+     * Simplified NServiceKit.Redis
+     */
+    public class RedisLite
     {
         public const long DefaultDb = 0;
         public const int DefaultPort = 6379;
@@ -143,8 +31,6 @@ namespace ConsoleAppTest.Redis
 
         protected Socket socket;
         protected BufferedStream Bstream;
-
-        private Dictionary<string, string> info;
 
         /// <summary>
         /// Used to manage connection pooling
@@ -171,22 +57,13 @@ namespace ConsoleAppTest.Redis
         public string Password { get; set; }
         public int IdleTimeOutSecs { get; set; }
 
-        public RedisClient(string host)
-            : this(host, 6379)
+        public RedisLite(string host, int port = 6379): this(host, port, null)
         {
         }
 
-        public RedisClient(string host, int port)
-            : this(host, port, null)
+        public RedisLite(string host, int port, string password = null, long db = DefaultDb)
         {
-        }
-
-        public RedisClient(string host, int port, string password = null, long db = DefaultDb)
-        {
-            if (host == null)
-                throw new ArgumentNullException("host");
-
-            Host = host;
+            Host = host ?? throw new ArgumentNullException(nameof(host));
             Port = port;
             SendTimeout = -1;
             ReceiveTimeout = -1;
@@ -195,13 +72,11 @@ namespace ConsoleAppTest.Redis
             IdleTimeOutSecs = DefaultIdleTimeOutSecs;
         }
 
-        long db;
-
+        private long _db;
         public long Db
         {
-            get { return db; }
-
-            set { db = value; }
+            get => _db;
+            set => _db = value;
         }
 
         public bool Ping()
@@ -214,14 +89,22 @@ namespace ConsoleAppTest.Redis
             SendCommand(Commands.Quit);
         }
 
+        public long Exists(string key)
+        {
+            if (key == null)
+                throw new ArgumentNullException(nameof(key));
+
+            return SendExpectLong(Commands.Exists, key.ToUtf8Bytes());
+        }
+
         public void Set(string key, byte[] value)
         {
             if (key == null)
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
             value = value ?? new byte[0];
 
             if (value.Length > OneGb)
-                throw new ArgumentException("value exceeds 1G", "value");
+                throw new ArgumentException("value exceeds 1G", nameof(value));
 
             SendExpectSuccess(Commands.Set, key.ToUtf8Bytes(), value);
         }
@@ -241,23 +124,27 @@ namespace ConsoleAppTest.Redis
         public byte[] GetBytes(string key)
         {
             if (key == null)
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
 
             return SendExpectData(Commands.Get, key.ToUtf8Bytes());
         }
 
-        public long Exists(string key)
+        public byte[][] MGet(params byte[][] keys)
         {
-            if (key == null)
-                throw new ArgumentNullException("key");
+            if (keys == null)
+                throw new ArgumentNullException(nameof(keys));
+            if (keys.Length == 0)
+                throw new ArgumentException("keys");
 
-            return SendExpectLong(Commands.Exists, key.ToUtf8Bytes());
+            var cmdWithArgs = MergeCommandWithArgs(Commands.MGet, keys);
+
+            return SendExpectMultiData(cmdWithArgs);
         }
 
         public long Del(string key)
         {
             if (key == null)
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
 
             return SendExpectLong(Commands.Del, key.ToUtf8Bytes());
         }
@@ -265,7 +152,7 @@ namespace ConsoleAppTest.Redis
         public long Del(params string[] keys)
         {
             if (keys == null)
-                throw new ArgumentNullException("keys");
+                throw new ArgumentNullException(nameof(keys));
 
             var cmdWithArgs = MergeCommandWithArgs(Commands.Del, keys);
             return SendExpectLong(cmdWithArgs);
@@ -303,19 +190,17 @@ namespace ConsoleAppTest.Redis
                 if (Password != null)
                     SendExpectSuccess(Commands.Auth, Password.ToUtf8Bytes());
 
-                if (db != 0)
-                    SendExpectSuccess(Commands.Select, db.ToUtf8Bytes());
+                if (_db != 0)
+                    SendExpectSuccess(Commands.Select, _db.ToUtf8Bytes());
 
-                var ipEndpoint = socket.LocalEndPoint as IPEndPoint;
-                clientPort = ipEndpoint != null ? ipEndpoint.Port : -1;
+                clientPort = socket.LocalEndPoint is IPEndPoint ipEndpoint ? ipEndpoint.Port : -1;
                 lastCommand = null;
                 lastSocketException = null;
                 LastConnectedAtTimestamp = Stopwatch.GetTimestamp();
             }
             catch (SocketException ex)
             {
-                if (socket != null)
-                    socket.Close();
+                socket?.Close();
                 socket = null;
 
                 HadExceptions = true;
@@ -325,7 +210,7 @@ namespace ConsoleAppTest.Redis
             }
         }
 
-        internal bool IsDisposed { get; set; }
+        private bool IsDisposed { get; set; }
 
         public void Dispose()
         {
@@ -333,7 +218,7 @@ namespace ConsoleAppTest.Redis
             GC.SuppressFinalize(this);
         }
 
-        ~RedisClient()
+        ~RedisLite()
         {
             Dispose(false);
         }
@@ -347,7 +232,7 @@ namespace ConsoleAppTest.Redis
             }
         }
 
-        internal void DisposeConnection()
+        private void DisposeConnection()
         {
             if (IsDisposed) return;
             IsDisposed = true;
@@ -370,7 +255,7 @@ namespace ConsoleAppTest.Redis
 
         private bool Reconnect()
         {
-            var previousDb = db;
+            var previousDb = _db;
 
             SafeConnectionClose();
             Connect(); //sets db to 0
@@ -385,17 +270,8 @@ namespace ConsoleAppTest.Redis
             try
             {
                 // workaround for a .net bug: http://support.microsoft.com/kb/821625
-                if (Bstream != null)
-                    Bstream.Close();
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                if (socket != null)
-                    socket.Close();
+                Bstream?.Close();
+                socket?.Close();
             }
             catch
             {
@@ -405,7 +281,7 @@ namespace ConsoleAppTest.Redis
             socket = null;
         }
 
-        protected string ReadLine()
+        private string ReadLine()
         {
             var sb = new StringBuilder();
 
@@ -422,13 +298,6 @@ namespace ConsoleAppTest.Redis
             return sb.ToString();
         }
 
-        public bool IsSocketConnected()
-        {
-            var part1 = socket.Poll(1000, SelectMode.SelectRead);
-            var part2 = (socket.Available == 0);
-            return !(part1 & part2);
-        }
-
         private bool AssertConnectedSocket()
         {
             if (LastConnectedAtTimestamp > 0)
@@ -436,7 +305,7 @@ namespace ConsoleAppTest.Redis
                 var now = Stopwatch.GetTimestamp();
                 var elapsedSecs = (now - LastConnectedAtTimestamp) / Stopwatch.Frequency;
 
-                if (socket == null || (elapsedSecs > IdleTimeOutSecs && !socket.IsConnected()))
+                if (socket == null || elapsedSecs > IdleTimeOutSecs && !socket.IsConnected())
                 {
                     return Reconnect();
                 }
@@ -471,9 +340,7 @@ namespace ConsoleAppTest.Redis
         private RedisResponseException CreateResponseError(string error)
         {
             HadExceptions = true;
-            var throwEx = new RedisResponseException(
-                string.Format("{0}, sPort: {1}, LastCommand: {2}",
-                    error, clientPort, lastCommand));
+            var throwEx = new RedisResponseException($"{error}, sPort: {clientPort}, LastCommand: {lastCommand}");
             Log(throwEx.Message);
             throw throwEx;
         }
@@ -481,9 +348,7 @@ namespace ConsoleAppTest.Redis
         private RedisException CreateConnectionError()
         {
             HadExceptions = true;
-            var throwEx = new RedisException(
-                string.Format("Unable to Connect: sPort: {0}",
-                    clientPort), lastSocketException);
+            var throwEx = new RedisException($"Unable to Connect: sPort: {clientPort}", lastSocketException);
             Log(throwEx.Message);
             throw throwEx;
         }
@@ -525,7 +390,7 @@ namespace ConsoleAppTest.Redis
             }
             catch (SocketException ex)
             {
-                cmdBuffer.Clear();
+                _cmdBuffer.Clear();
                 return HandleSocketException(ex);
             }
 
@@ -544,11 +409,11 @@ namespace ConsoleAppTest.Redis
             }
         }
 
-        readonly IList<ArraySegment<byte>> cmdBuffer = new List<ArraySegment<byte>>();
-        byte[] currentBuffer = BufferPool.GetBuffer();
-        int currentBufferIndex;
+        private readonly IList<ArraySegment<byte>> _cmdBuffer = new List<ArraySegment<byte>>();
+        private byte[] _currentBuffer = BufferPool.GetBuffer();
+        private int _currentBufferIndex;
 
-        public void WriteToSendBuffer(byte[] cmdBytes)
+        private void WriteToSendBuffer(byte[] cmdBytes)
         {
             if (CouldAddToCurrentBuffer(cmdBytes)) return;
 
@@ -562,17 +427,17 @@ namespace ConsoleAppTest.Redis
                 var copyOfBytes = BufferPool.GetBuffer();
                 var bytesToCopy = Math.Min(cmdBytes.Length - bytesCopied, copyOfBytes.Length);
                 Buffer.BlockCopy(cmdBytes, bytesCopied, copyOfBytes, 0, bytesToCopy);
-                cmdBuffer.Add(new ArraySegment<byte>(copyOfBytes, 0, bytesToCopy));
+                _cmdBuffer.Add(new ArraySegment<byte>(copyOfBytes, 0, bytesToCopy));
                 bytesCopied += bytesToCopy;
             }
         }
 
         private bool CouldAddToCurrentBuffer(byte[] cmdBytes)
         {
-            if (cmdBytes.Length + currentBufferIndex < BufferPool.BufferLength)
+            if (cmdBytes.Length + _currentBufferIndex < BufferPool.BufferLength)
             {
-                Buffer.BlockCopy(cmdBytes, 0, currentBuffer, currentBufferIndex, cmdBytes.Length);
-                currentBufferIndex += cmdBytes.Length;
+                Buffer.BlockCopy(cmdBytes, 0, _currentBuffer, _currentBufferIndex, cmdBytes.Length);
+                _currentBufferIndex += cmdBytes.Length;
                 return true;
             }
 
@@ -581,18 +446,18 @@ namespace ConsoleAppTest.Redis
 
         private void PushCurrentBuffer()
         {
-            cmdBuffer.Add(new ArraySegment<byte>(currentBuffer, 0, currentBufferIndex));
-            currentBuffer = BufferPool.GetBuffer();
-            currentBufferIndex = 0;
+            _cmdBuffer.Add(new ArraySegment<byte>(_currentBuffer, 0, _currentBufferIndex));
+            _currentBuffer = BufferPool.GetBuffer();
+            _currentBufferIndex = 0;
         }
 
-        public void FlushSendBuffer()
+        private void FlushSendBuffer()
         {
-            if (currentBufferIndex > 0)
+            if (_currentBufferIndex > 0)
                 PushCurrentBuffer();
 
-            //Sendling IList<ArraySegment> Throws 'Message to Large' SocketException in Mono
-            foreach (var segment in cmdBuffer)
+            // Sendling IList<ArraySegment> Throws 'Message to Large' SocketException in Mono
+            foreach (var segment in _cmdBuffer)
             {
                 var buffer = segment.Array;
                 socket.Send(buffer, segment.Offset, segment.Count, SocketFlags.None);
@@ -606,12 +471,12 @@ namespace ConsoleAppTest.Redis
         /// </summary>
         public void ResetSendBuffer()
         {
-            currentBufferIndex = 0;
-            for (int i = cmdBuffer.Count - 1; i >= 0; i--)
+            _currentBufferIndex = 0;
+            for (int i = _cmdBuffer.Count - 1; i >= 0; i--)
             {
-                var buffer = cmdBuffer[i].Array;
+                var buffer = _cmdBuffer[i].Array;
                 BufferPool.ReleaseBufferToPool(ref buffer);
-                cmdBuffer.RemoveAt(i);
+                _cmdBuffer.RemoveAt(i);
             }
         }
 
@@ -707,22 +572,22 @@ namespace ConsoleAppTest.Redis
         [Conditional("DEBUG")]
         protected void CmdLog(byte[][] args)
         {
-//            var sb = new StringBuilder();
-//            foreach (var arg in args)
-//            {
-//                if (sb.Length > 0)
-//                    sb.Append(" ");
-//
-//                sb.Append(arg.FromUtf8Bytes());
-//            }
-//
-//            this.lastCommand = sb.ToString();
-//            if (this.lastCommand.Length > 100)
-//            {
-//                this.lastCommand = this.lastCommand.Substring(0, 100) + "...";
-//            }
-//
-//            Console.WriteLine("S: " + this.lastCommand);
+            // var sb = new StringBuilder();
+            // foreach (var arg in args)
+            // {
+            //     if (sb.Length > 0)
+            //         sb.Append(" ");
+
+            //     sb.Append(arg.FromUtf8Bytes());
+            // }
+
+            // lastCommand = sb.ToString();
+            // if (lastCommand.Length > 100)
+            // {
+            //     lastCommand = lastCommand.Substring(0, 100) + "...";
+            // }
+
+            // Console.WriteLine("S: " + lastCommand);
         }
 
         protected void ExpectSuccess()
@@ -1017,13 +882,13 @@ namespace ConsoleAppTest.Redis
             byte[][] keys, byte[][] values)
         {
             if (keys == null || keys.Length == 0)
-                throw new ArgumentNullException("keys");
+                throw new ArgumentNullException(nameof(keys));
             if (values == null || values.Length == 0)
-                throw new ArgumentNullException("values");
+                throw new ArgumentNullException(nameof(values));
             if (keys.Length != values.Length)
                 throw new ArgumentException("The number of values must be equal to the number of keys");
 
-            var keyValueStartIndex = (firstParams != null) ? firstParams.Length : 0;
+            var keyValueStartIndex = firstParams?.Length ?? 0;
 
             var keysAndValuesLength = keys.Length * 2 + keyValueStartIndex;
             var keysAndValues = new byte[keysAndValuesLength][];
@@ -1104,185 +969,6 @@ namespace ConsoleAppTest.Redis
             return ConvertToBytes(merged);
         }
     }
-
-    public class RedisException
-        : Exception
-    {
-        public RedisException(string message)
-            : base(message)
-        {
-        }
-
-        public RedisException(string message, Exception innerException)
-            : base(message, innerException)
-        {
-        }
-    }
-
-    internal static class RedisExtensions
-    {
-        public static byte[][] ToMultiByteArray(this string[] args)
-        {
-            var byteArgs = new byte[args.Length][];
-            for (var i = 0; i < args.Length; ++i)
-                byteArgs[i] = args[i].ToUtf8Bytes();
-            return byteArgs;
-        }
-
-        public static bool IsConnected(this Socket socket)
-        {
-            try
-            {
-                return !(socket.Poll(1, SelectMode.SelectRead) && socket.Available == 0);
-            }
-            catch (SocketException)
-            {
-                return false;
-            }
-        }
-
-        public static string FromUtf8Bytes(this byte[] bytes)
-        {
-            return bytes == null
-                ? null
-                : Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-        }
-
-        public static byte[] ToUtf8Bytes(this string value)
-        {
-            return Encoding.UTF8.GetBytes(value);
-        }
-
-        public static byte[] ToUtf8Bytes(this int intVal)
-        {
-            return FastToUtf8Bytes(intVal.ToString());
-        }
-
-        public static byte[] ToUtf8Bytes(this long longVal)
-        {
-            return FastToUtf8Bytes(longVal.ToString());
-        }
-
-        public static byte[] ToUtf8Bytes(this ulong ulongVal)
-        {
-            return FastToUtf8Bytes(ulongVal.ToString());
-        }
-
-        /// <summary>
-        /// Skip the encoding process for 'safe strings' 
-        /// </summary>
-        /// <param name="strVal"></param>
-        /// <returns></returns>
-        private static byte[] FastToUtf8Bytes(string strVal)
-        {
-            var bytes = new byte[strVal.Length];
-            for (var i = 0; i < strVal.Length; i++)
-                bytes[i] = (byte) strVal[i];
-
-            return bytes;
-        }
-    }
-
-    public static class Commands
-    {
-        public readonly static byte[] Quit = "QUIT".ToUtf8Bytes();
-        public readonly static byte[] Auth = "AUTH".ToUtf8Bytes();
-        public readonly static byte[] Exists = "EXISTS".ToUtf8Bytes();
-        public readonly static byte[] Del = "DEL".ToUtf8Bytes();
-        public readonly static byte[] Type = "TYPE".ToUtf8Bytes();
-        public readonly static byte[] Keys = "KEYS".ToUtf8Bytes();
-        public readonly static byte[] RandomKey = "RANDOMKEY".ToUtf8Bytes();
-        public readonly static byte[] Rename = "RENAME".ToUtf8Bytes();
-        public readonly static byte[] RenameNx = "RENAMENX".ToUtf8Bytes();
-        public readonly static byte[] PExpire = "PEXPIRE".ToUtf8Bytes();
-        public readonly static byte[] PExpireAt = "PEXPIREAT".ToUtf8Bytes();
-        public readonly static byte[] DbSize = "DBSIZE".ToUtf8Bytes();
-        public readonly static byte[] Expire = "EXPIRE".ToUtf8Bytes();
-        public readonly static byte[] ExpireAt = "EXPIREAT".ToUtf8Bytes();
-        public readonly static byte[] Ttl = "TTL".ToUtf8Bytes();
-        public readonly static byte[] PTtl = "PTTL".ToUtf8Bytes();
-        public readonly static byte[] Select = "SELECT".ToUtf8Bytes();
-        public readonly static byte[] FlushDb = "FLUSHDB".ToUtf8Bytes();
-        public readonly static byte[] FlushAll = "FLUSHALL".ToUtf8Bytes();
-        public readonly static byte[] Ping = "PING".ToUtf8Bytes();
-        public readonly static byte[] Echo = "ECHO".ToUtf8Bytes();
-
-        public readonly static byte[] Save = "SAVE".ToUtf8Bytes();
-        public readonly static byte[] BgSave = "BGSAVE".ToUtf8Bytes();
-        public readonly static byte[] LastSave = "LASTSAVE".ToUtf8Bytes();
-        public readonly static byte[] Shutdown = "SHUTDOWN".ToUtf8Bytes();
-        public readonly static byte[] BgRewriteAof = "BGREWRITEAOF".ToUtf8Bytes();
-
-        public readonly static byte[] Info = "INFO".ToUtf8Bytes();
-        public readonly static byte[] SlaveOf = "SLAVEOF".ToUtf8Bytes();
-        public readonly static byte[] No = "NO".ToUtf8Bytes();
-        public readonly static byte[] One = "ONE".ToUtf8Bytes();
-        public readonly static byte[] ResetStat = "RESETSTAT".ToUtf8Bytes();
-        public readonly static byte[] Time = "TIME".ToUtf8Bytes();
-        public readonly static byte[] Segfault = "SEGFAULT".ToUtf8Bytes();
-        public readonly static byte[] Dump = "DUMP".ToUtf8Bytes();
-        public readonly static byte[] Restore = "RESTORE".ToUtf8Bytes();
-        public readonly static byte[] Migrate = "MIGRATE".ToUtf8Bytes();
-        public readonly static byte[] Move = "MOVE".ToUtf8Bytes();
-        public readonly static byte[] Object = "OBJECT".ToUtf8Bytes();
-        public readonly static byte[] IdleTime = "IDLETIME".ToUtf8Bytes();
-        public readonly static byte[] Monitor = "MONITOR".ToUtf8Bytes(); //missing
-        public readonly static byte[] Debug = "DEBUG".ToUtf8Bytes(); //missing
-        public readonly static byte[] Config = "CONFIG".ToUtf8Bytes(); //missing
-        public readonly static byte[] Client = "CLIENT".ToUtf8Bytes();
-        public readonly static byte[] List = "LIST".ToUtf8Bytes();
-        public readonly static byte[] Kill = "KILL".ToUtf8Bytes();
-        public readonly static byte[] SetName = "SETNAME".ToUtf8Bytes();
-
-        public readonly static byte[] GetName = "GETNAME".ToUtf8Bytes();
-        //public readonly static byte[] Get = "GET".ToUtf8Bytes();
-        //public readonly static byte[] Set = "SET".ToUtf8Bytes();
-
-        public readonly static byte[] StrLen = "STRLEN".ToUtf8Bytes();
-        public readonly static byte[] Set = "SET".ToUtf8Bytes();
-        public readonly static byte[] Get = "GET".ToUtf8Bytes();
-        public readonly static byte[] GetSet = "GETSET".ToUtf8Bytes();
-        public readonly static byte[] MGet = "MGET".ToUtf8Bytes();
-        public readonly static byte[] SetNx = "SETNX".ToUtf8Bytes();
-        public readonly static byte[] SetEx = "SETEX".ToUtf8Bytes();
-        public readonly static byte[] Persist = "PERSIST".ToUtf8Bytes();
-        public readonly static byte[] PSetEx = "PSETEX".ToUtf8Bytes();
-        public readonly static byte[] MSet = "MSET".ToUtf8Bytes();
-        public readonly static byte[] MSetNx = "MSETNX".ToUtf8Bytes();
-        public readonly static byte[] Incr = "INCR".ToUtf8Bytes();
-        public readonly static byte[] IncrBy = "INCRBY".ToUtf8Bytes();
-        public readonly static byte[] IncrByFloat = "INCRBYFLOAT".ToUtf8Bytes();
-        public readonly static byte[] Decr = "DECR".ToUtf8Bytes();
-        public readonly static byte[] DecrBy = "DECRBY".ToUtf8Bytes();
-        public readonly static byte[] Append = "APPEND".ToUtf8Bytes();
-        public readonly static byte[] Substr = "SUBSTR".ToUtf8Bytes();
-        public readonly static byte[] GetRange = "GETRANGE".ToUtf8Bytes();
-        public readonly static byte[] SetRange = "SETRANGE".ToUtf8Bytes();
-        public readonly static byte[] GetBit = "GETBIT".ToUtf8Bytes();
-        public readonly static byte[] SetBit = "SETBIT".ToUtf8Bytes();
-        public readonly static byte[] BitCount = "BITCOUNT".ToUtf8Bytes();
-
-        public readonly static byte[] Load = "LOAD".ToUtf8Bytes();
-
-        //public readonly static byte[] Exists = "EXISTS".ToUtf8Bytes();
-    }
-
-    public class RedisResponseException
-        : RedisException
-    {
-        public RedisResponseException(string message)
-            : base(message)
-        {
-        }
-
-        public RedisResponseException(string message, string code) : base(message)
-        {
-            Code = code;
-        }
-
-        public string Code { get; private set; }
-    }
-
 
     internal class BufferPool
     {

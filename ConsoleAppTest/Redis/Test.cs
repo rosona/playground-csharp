@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Threading.Tasks;
+using ConsoleAppTest.Redis.RedisProtocol;
 using ConsoleAppTest.Utils;
 using NServiceKit.Redis;
 using StackExchange.Redis;
@@ -11,16 +12,23 @@ namespace ConsoleAppTest.Redis
 {
     public class Test
     {
-        private const int MaxThread = 2;
-        private const int MaxKeysPerThread = 10000;
+        private const int MaxThread = 10;
+        private const int MaxKeysPerThread = 5000;
 
         public static void Run()
         {
-            TestSimpleRedis();
-            TestNServiceKitRedis();
-//            TestStackExchangeRedis();
+            NormalTest();
+            // TestSimpleRedis();
+            // TestNServiceKitRedis();
+            // TestStackExchangeRedis();
         }
 
+        public static void NormalTest()
+        {
+            var redis = new PooledRedisLite("192.168.9.9");
+            var value = redis.GetString("xxxxxxx");
+            Console.WriteLine($"#### {value}");
+        }
         private static void TestNServiceKitRedis()
         {
             var nkRedis = new NServiceKitRedis();
@@ -42,8 +50,8 @@ namespace ConsoleAppTest.Redis
             {
                 var key = StringUtils.RandomString(30);
                 var value = StringUtils.RandomString(20);
-                ((NServiceKitRedis) nkRedis).Set(key, Encoding.ASCII.GetBytes(value));
-                var getValue = ((NServiceKitRedis) nkRedis).Get(key);
+                ((NServiceKitRedis)nkRedis).Set(key, Encoding.ASCII.GetBytes(value));
+                var getValue = ((NServiceKitRedis)nkRedis).Get(key);
                 if (getValue != value)
                 {
                     Console.WriteLine($"TestNServiceKitRedisWorker::Error: {key}: {value} != {getValue}");
@@ -53,7 +61,7 @@ namespace ConsoleAppTest.Redis
 
         private static void TestSimpleRedis()
         {
-            var redis = new PooledSimpleRedisClient("192.168.9.9");
+            var redis = new PooledRedisLite("192.168.9.9");
             var stopWatch = new Stopwatch();
             stopWatch.Start();
             var taskArray = new Task[MaxThread];
@@ -72,8 +80,8 @@ namespace ConsoleAppTest.Redis
             {
                 var key = StringUtils.RandomString(30);
                 var value = StringUtils.RandomString(20);
-                ((PooledSimpleRedisClient) redis).Set(key, Encoding.UTF8.GetBytes(value));
-                var getValue = ((PooledSimpleRedisClient) redis).GetString(key);
+                ((PooledRedisLite)redis).Set(key, Encoding.UTF8.GetBytes(value));
+                var getValue = ((PooledRedisLite)redis).GetString(key);
                 if (getValue != value)
                 {
                     Console.WriteLine($"TestSimpleRedisWorker::Error: {key}: {value} != {getValue}");
@@ -102,8 +110,8 @@ namespace ConsoleAppTest.Redis
             {
                 var key = StringUtils.RandomString(30);
                 var value = StringUtils.RandomString(20);
-                ((StackExchangeRedis) seRedis).Set(key, value);
-                var getValue = ((StackExchangeRedis) seRedis).Get(key);
+                ((StackExchangeRedis)seRedis).Set(key, value);
+                var getValue = ((StackExchangeRedis)seRedis).Get(key);
                 if (getValue != value)
                 {
                     Console.WriteLine($"TestStackExchangeRedisWorker::Error: {key}: {value} != {getValue}");

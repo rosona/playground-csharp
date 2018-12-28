@@ -66,7 +66,7 @@ namespace ConsoleAppTest.Signature
         }
 
         public static void SignatureVerify(List<Dictionary<string, object>> signatures)
-        {
+        {            
             foreach (var s in signatures)
             {
                 var verifier = new ECDsaSigner();
